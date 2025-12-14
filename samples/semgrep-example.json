@@ -1,0 +1,142 @@
+{
+  "results": [
+    {
+      "check_id": "javascript.express.security.audit.xss.mustache.var-in-href",
+      "path": "src/views/user.mustache",
+      "start": {
+        "line": 15,
+        "col": 5
+      },
+      "end": {
+        "line": 15,
+        "col": 45
+      },
+      "extra": {
+        "message": "Detected a template variable used in an href attribute. This could be vulnerable to XSS if the variable is user-controlled.",
+        "severity": "WARNING",
+        "metadata": {
+          "cwe": ["CWE-79"],
+          "owasp": ["A07:2017", "A03:2021"],
+          "references": [
+            "https://owasp.org/www-community/attacks/xss/"
+          ],
+          "category": "security",
+          "technology": ["express"],
+          "confidence": "LOW"
+        },
+        "lines": "<a href=\"{{userProfile}}\">Profile</a>"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal",
+      "path": "src/api/files.js",
+      "start": {
+        "line": 23,
+        "col": 12
+      },
+      "end": {
+        "line": 23,
+        "col": 58
+      },
+      "extra": {
+        "message": "Detected path.join() or path.resolve() with user-controlled input. This could allow path traversal attacks.",
+        "severity": "ERROR",
+        "metadata": {
+          "cwe": ["CWE-22"],
+          "owasp": ["A01:2017", "A01:2021"],
+          "references": [
+            "https://owasp.org/www-community/attacks/Path_Traversal"
+          ],
+          "category": "security",
+          "technology": ["nodejs"],
+          "confidence": "MEDIUM",
+          "fix": "Validate that the resolved path is within the expected directory using path.resolve() and startsWith() checks."
+        },
+        "lines": "const filePath = path.join(uploadDir, req.params.filename);"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.audit.sqli.node-postgres-sqli",
+      "path": "src/db/queries.js",
+      "start": {
+        "line": 45,
+        "col": 3
+      },
+      "end": {
+        "line": 47,
+        "col": 5
+      },
+      "extra": {
+        "message": "Detected SQL query built with string concatenation. Use parameterized queries instead.",
+        "severity": "ERROR",
+        "metadata": {
+          "cwe": ["CWE-89"],
+          "owasp": ["A03:2017", "A03:2021"],
+          "references": [
+            "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html"
+          ],
+          "category": "security",
+          "technology": ["nodejs", "postgres"],
+          "confidence": "HIGH"
+        },
+        "lines": "const query = `SELECT * FROM users WHERE id = ${userId}`;\nawait client.query(query);"
+      }
+    },
+    {
+      "check_id": "javascript.jwt.security.jwt-hardcode",
+      "path": "src/auth/jwt.js",
+      "start": {
+        "line": 8,
+        "col": 14
+      },
+      "end": {
+        "line": 8,
+        "col": 52
+      },
+      "extra": {
+        "message": "Hardcoded JWT secret detected. Store secrets in environment variables.",
+        "severity": "ERROR",
+        "metadata": {
+          "cwe": ["CWE-798"],
+          "owasp": ["A02:2017", "A02:2021"],
+          "references": [
+            "https://cwe.mitre.org/data/definitions/798.html"
+          ],
+          "category": "security",
+          "confidence": "HIGH"
+        },
+        "lines": "const secret = 'super-secret-jwt-key-12345';"
+      }
+    },
+    {
+      "check_id": "javascript.express.security.express-helmet-missing",
+      "path": "src/app.js",
+      "start": {
+        "line": 1,
+        "col": 1
+      },
+      "end": {
+        "line": 50,
+        "col": 1
+      },
+      "extra": {
+        "message": "Express app does not use Helmet middleware. Add Helmet to set security-related HTTP headers.",
+        "severity": "WARNING",
+        "metadata": {
+          "cwe": ["CWE-693"],
+          "owasp": ["A05:2017", "A05:2021"],
+          "references": [
+            "https://helmetjs.github.io/"
+          ],
+          "category": "security",
+          "confidence": "MEDIUM",
+          "fix": "npm install helmet && app.use(helmet())"
+        },
+        "lines": "const app = express();"
+      }
+    }
+  ],
+  "errors": [],
+  "version": "1.45.0"
+}
+

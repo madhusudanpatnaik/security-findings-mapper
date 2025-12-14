@@ -1,0 +1,235 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SecurityScanner Pro",
+          "version": "3.2.1",
+          "rules": [
+            {
+              "id": "sql-injection",
+              "shortDescription": {
+                "text": "SQL Injection Vulnerability"
+              },
+              "fullDescription": {
+                "text": "User input is concatenated directly into SQL query without proper sanitization, allowing attackers to modify query logic."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "help": {
+                "text": "Use parameterized queries or prepared statements instead of string concatenation."
+              },
+              "helpUri": "https://owasp.org/www-community/attacks/SQL_Injection",
+              "properties": {
+                "security-severity": "9.8",
+                "tags": ["security", "sql", "injection", "OWASP A03:2021"]
+              }
+            },
+            {
+              "id": "xss-reflected",
+              "shortDescription": {
+                "text": "Reflected Cross-Site Scripting (XSS)"
+              },
+              "fullDescription": {
+                "text": "User input is reflected in HTTP response without proper encoding, allowing script injection."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "help": {
+                "text": "Encode all user input before rendering in HTML context. Use Content-Security-Policy headers."
+              },
+              "helpUri": "https://owasp.org/www-community/attacks/xss/",
+              "properties": {
+                "security-severity": "6.1",
+                "tags": ["security", "xss", "OWASP A07:2021"]
+              }
+            },
+            {
+              "id": "hardcoded-secret",
+              "shortDescription": {
+                "text": "Hardcoded API Key Detected"
+              },
+              "fullDescription": {
+                "text": "API key or secret is hardcoded in source code, which could be exposed if code is leaked."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "help": {
+                "text": "Store secrets in environment variables or a secure secrets manager."
+              },
+              "properties": {
+                "security-severity": "8.5",
+                "tags": ["security", "secrets", "CWE-798"]
+              }
+            },
+            {
+              "id": "insecure-deserialization",
+              "shortDescription": {
+                "text": "Insecure Deserialization"
+              },
+              "fullDescription": {
+                "text": "Untrusted data is deserialized without validation, potentially allowing remote code execution."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "help": {
+                "text": "Validate and sanitize all serialized data. Use safe deserialization libraries."
+              },
+              "helpUri": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/16-Testing_for_HTTP_Incoming_Requests",
+              "properties": {
+                "security-severity": "9.1",
+                "tags": ["security", "deserialization", "OWASP A08:2021", "CWE-502"]
+              }
+            },
+            {
+              "id": "weak-crypto",
+              "shortDescription": {
+                "text": "Weak Cryptographic Algorithm"
+              },
+              "fullDescription": {
+                "text": "MD5 hash algorithm is used for password storage. MD5 is cryptographically broken."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "help": {
+                "text": "Use bcrypt, scrypt, or Argon2 for password hashing."
+              },
+              "properties": {
+                "security-severity": "7.5",
+                "tags": ["security", "crypto", "CWE-328"]
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "sql-injection",
+          "level": "error",
+          "message": {
+            "text": "SQL query is constructed using string concatenation with user input 'userId'. This allows SQL injection attacks."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/api/users.js"
+                },
+                "region": {
+                  "startLine": 45,
+                  "startColumn": 12,
+                  "endLine": 45,
+                  "endColumn": 78
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "sql-injection",
+          "level": "error",
+          "message": {
+            "text": "SQL query uses string formatting with untrusted 'email' parameter."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/api/auth.js"
+                },
+                "region": {
+                  "startLine": 23,
+                  "startColumn": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "xss-reflected",
+          "level": "warning",
+          "message": {
+            "text": "User input 'searchQuery' is rendered in response without HTML encoding."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/views/search.ejs"
+                },
+                "region": {
+                  "startLine": 15
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "hardcoded-secret",
+          "level": "error",
+          "message": {
+            "text": "AWS Secret Access Key is hardcoded: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/config/aws.js"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "insecure-deserialization",
+          "level": "error",
+          "message": {
+            "text": "User-controlled data is passed to JSON.parse() without validation, enabling prototype pollution."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/utils/parser.js"
+                },
+                "region": {
+                  "startLine": 78
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "weak-crypto",
+          "level": "warning",
+          "message": {
+            "text": "MD5 is used to hash passwords. Use bcrypt or Argon2 instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/auth/password.js"
+                },
+                "region": {
+                  "startLine": 34
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

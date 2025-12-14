@@ -1,0 +1,25 @@
+modules:
+  jira:projectPage:
+    - key: security-findings-mapper
+      function: render
+      title: Security Findings Mapper
+      resolver:
+        function: resolver
+
+  function:
+    - key: render
+      handler: index.render
+    - key: resolver
+      handler: index.handler
+
+app:
+  runtime:
+    name: nodejs20.x
+  id: ari:cloud:ecosystem::app/a2d55140-59a4-432e-84bd-c52b0eae0792
+
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - read:jira-user
+    - manage:jira-project

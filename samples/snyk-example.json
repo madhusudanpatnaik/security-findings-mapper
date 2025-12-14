@@ -1,0 +1,94 @@
+{
+  "vulnerabilities": [
+    {
+      "id": "SNYK-JS-LODASH-1018905",
+      "title": "Prototype Pollution",
+      "severity": "high",
+      "packageName": "lodash",
+      "version": "4.17.15",
+      "description": "lodash before 4.17.21 is vulnerable to Prototype Pollution via the setWith and set functions.",
+      "cvssScore": 7.4,
+      "identifiers": {
+        "CVE": ["CVE-2020-8203"],
+        "CWE": ["CWE-1321"]
+      },
+      "from": ["myapp@1.0.0", "express@4.17.1", "lodash@4.17.15"],
+      "fixedIn": ["4.17.21"],
+      "references": [
+        {"url": "https://nvd.nist.gov/vuln/detail/CVE-2020-8203"}
+      ]
+    },
+    {
+      "id": "SNYK-JS-AXIOS-1038255",
+      "title": "Server-Side Request Forgery (SSRF)",
+      "severity": "critical",
+      "packageName": "axios",
+      "version": "0.21.0",
+      "description": "axios before 0.21.1 allows Server-Side Request Forgery (SSRF) when a hostile URL is provided.",
+      "cvssScore": 9.1,
+      "identifiers": {
+        "CVE": ["CVE-2021-3749"],
+        "CWE": ["CWE-918"]
+      },
+      "from": ["myapp@1.0.0", "axios@0.21.0"],
+      "fixedIn": ["0.21.1"],
+      "references": [
+        {"url": "https://nvd.nist.gov/vuln/detail/CVE-2021-3749"}
+      ]
+    },
+    {
+      "id": "SNYK-JS-MINIMIST-559764",
+      "title": "Prototype Pollution",
+      "severity": "medium",
+      "packageName": "minimist",
+      "version": "1.2.0",
+      "description": "minimist before 1.2.2 is vulnerable to prototype pollution.",
+      "cvssScore": 5.6,
+      "identifiers": {
+        "CVE": ["CVE-2020-7598"],
+        "CWE": ["CWE-1321"]
+      },
+      "from": ["myapp@1.0.0", "mkdirp@0.5.1", "minimist@1.2.0"],
+      "fixedIn": ["1.2.2"],
+      "references": []
+    },
+    {
+      "id": "SNYK-JS-JSONWEBTOKEN-3180024",
+      "title": "Improper Restriction of Security Token Assignment",
+      "severity": "high",
+      "packageName": "jsonwebtoken",
+      "version": "8.5.1",
+      "description": "jsonwebtoken before 9.0.0 is vulnerable due to the library allowing tokens to be forged when the secretOrPublicKey is empty.",
+      "cvssScore": 7.5,
+      "identifiers": {
+        "CVE": ["CVE-2022-23529"],
+        "CWE": ["CWE-287"]
+      },
+      "from": ["myapp@1.0.0", "jsonwebtoken@8.5.1"],
+      "fixedIn": ["9.0.0"],
+      "references": [
+        {"url": "https://nvd.nist.gov/vuln/detail/CVE-2022-23529"}
+      ]
+    },
+    {
+      "id": "SNYK-JS-EXPRESSFILEUPLOAD-2635955",
+      "title": "Denial of Service (DoS)",
+      "severity": "low",
+      "packageName": "express-fileupload",
+      "version": "1.2.1",
+      "description": "express-fileupload is vulnerable to Denial of Service when processing a malformed upload.",
+      "cvssScore": 3.7,
+      "identifiers": {
+        "CVE": [],
+        "CWE": ["CWE-400"]
+      },
+      "from": ["myapp@1.0.0", "express-fileupload@1.2.1"],
+      "fixedIn": ["1.3.0"],
+      "references": []
+    }
+  ],
+  "packageManager": "npm",
+  "projectName": "myapp",
+  "summary": "5 vulnerabilities found"
+}
+

