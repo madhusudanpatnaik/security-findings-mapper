@@ -1,6 +1,6 @@
 # 🛡️ Security Findings Mapper
 
-![Security Findings Mapper Banner](images/banner.png)
+![Security Findings Mapper Banner](images/security%20finidng%20banner.png)
 
 > **Transform security scan chaos into actionable Jira issues in seconds**
 
