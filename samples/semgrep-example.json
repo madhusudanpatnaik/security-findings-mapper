@@ -22,7 +22,8 @@
           ],
           "category": "security",
           "technology": ["express"],
-          "confidence": "LOW"
+          "confidence": "LOW",
+          "fix": "Encode userProfile before injecting into href or use safe templating helpers"
         },
         "lines": "<a href=\"{{userProfile}}\">Profile</a>"
       }

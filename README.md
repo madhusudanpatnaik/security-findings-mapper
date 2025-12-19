@@ -1,48 +1,66 @@
-# 🔒 Security Findings Mapper
+# 🛡️ Security Findings Mapper
 
-> **Codegeist 2025** | Apps for Software Teams | Built on Forge
+> **Transform security scan chaos into actionable Jira issues in seconds**
 
-**One-click import of security audit findings into Jira.**
+[![Built on Forge](https://img.shields.io/badge/Built%20on-Atlassian%20Forge-0052CC?logo=atlassian)](https://developer.atlassian.com/platform/forge/)
+[![Codegeist 2025](https://img.shields.io/badge/Codegeist-2025-FF5630)](https://codegeist.devpost.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Parse SARIF, Snyk, Semgrep, Trivy, or plain text → auto-create Jira issues with severity, CVSS, CWE, labels, and due dates.
+---
+
+## 📋 Project Summary
+
+| | |
+|---|---|
+| **Project Name** | Security Findings Mapper |
+| **Elevator Pitch** | Paste any security scan → instantly create Jira issues with severity, SLA, and auto-assignment |
 
 ---
 
 ## 🎯 The Problem
 
-Security audits produce 50+ findings in reports. Teams manually copy each into Jira:
+Security audits produce 50–200+ findings in various formats. Teams manually copy each into Jira:
 
-- **6-8 hours wasted** per audit
-- **Inconsistent data** - missing severity, wrong labels
-- **Delayed sprints** waiting for ticket creation
+- ⏱️ **6–8 hours wasted** per audit transcribing findings
+- 🔀 **Inconsistent data** — missing severity, wrong labels, no CWE/CVE
+- 🐢 **Delayed sprints** waiting for security tickets
+- 📉 **No SLA tracking** — critical vulnerabilities sit unfixed
 
 ## 💡 The Solution
 
-**Paste → Parse → Create. Done in 30 seconds.**
+**Paste → Preview → Create. Done in 30 seconds.**
 
-1. Paste your security report (SARIF, JSON, CSV, or text)
-2. Review parsed findings with auto-detected metadata
-3. Click "Create Issues" - all Jira tickets created instantly
+1. 📥 **Upload** — Paste security scan output (SARIF, Snyk, Semgrep, Trivy, Burp, CSV, or plain text)
+2. ⚙️ **Configure** — Filter findings, auto-assign by severity, set SLA due dates
+3. 🚀 **Create** — Bulk-create deduplicated Jira issues with full metadata
 
-**Time saved: 6-8 hours → 30 seconds**
+**Result: 6–8 hours → 30 seconds. Zero copy-paste errors.**
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-- **Auto-detect format** - SARIF, Snyk, Semgrep, Trivy, CSV, plain text
-- **Extract metadata** - Severity, CVSS score, CWE ID, CVE, OWASP category
-- **Rich Jira issues** - Structured descriptions, labels, priorities, due dates
-- **Bulk import** - Select which findings to import
+| Feature | Description |
+|---------|-------------|
+| 🔍 **Multi-format parser** | Auto-detects SARIF, Snyk, Semgrep, Trivy, Burp XML, CSV, plain text |
+| 📊 **Rich metadata** | Severity, CVSS, CWE/CVE, file location, evidence snippets, remediation |
+| 🔄 **Deduplication** | Fingerprint-based matching prevents duplicate issues |
+| 👤 **Auto-assignment** | Assign different team members per severity level |
+| ⏰ **SLA due dates** | Configure days-to-fix per severity (Critical=1d, High=7d, etc.) |
+| 🎨 **Modern UI** | Guided 3-step flow with filtering, quick-select, and progress tracking |
 
-### Created Issues Include:
+### Example Created Issue
 
 ```
-Summary: [CRITICAL] SQL Injection in /api/login
-Labels: security-finding, critical, cwe-89, owasp-a03
-Priority: Highest
-Due Date: +3 days (auto-calculated from severity)
-Description: Full finding details + remediation steps
+Summary: [HIGH] SQL Injection in /api/login
+Labels: security-finding, CWE-89, HIGH
+Description:
+  • Severity: HIGH (CVSS 8.1)
+  • CWE: CWE-89 (SQL Injection)
+  • Location: src/db/queries.js:45
+  • Evidence: SELECT * FROM users WHERE id = ${userId}
+  • Remediation: Use parameterized queries
+Due Date: 7 days from import (configurable)
 ```
 
 ---
@@ -50,23 +68,21 @@ Description: Full finding details + remediation steps
 ## 🚀 Quick Start
 
 ```bash
+# Clone and install
 cd security-findings-mapper
-
-# Install dependencies
 npm install
 
-# Login to Forge
+# Login to Forge CLI
 forge login
 
-# Register (first time only)
-forge register
-
-# Deploy
-forge deploy
+# Deploy to production
+forge deploy -e production
 
 # Install on your Jira site
-forge install
+forge install -e production
 ```
+
+Then open any Jira project → **Apps** → **Security Findings Mapper**
 
 ---
 
@@ -74,60 +90,91 @@ forge install
 
 ```
 security-findings-mapper/
-├── manifest.yml           # Forge configuration
-├── package.json           # Dependencies
+├── manifest.yml              # Forge app manifest
+├── package.json              # Dependencies
+├── .eslintrc.cjs             # Linting config
 ├── src/
-│   ├── index.js           # Backend (Jira API)
-│   ├── parser.js          # Multi-format parser
+│   ├── parser.js             # Multi-format security findings parser
+│   ├── resolver.js           # Backend resolvers (Jira REST API)
 │   └── frontend/
-│       └── index.jsx      # React UI
-└── samples/               # Test files
+│       └── index.jsx         # React UI (UI Kit 2)
+└── samples/                  # Test files for all supported formats
     ├── sarif-example.json
     ├── snyk-example.json
-    └── ...
+    ├── semgrep-example.json
+    ├── trivy-example.json
+    ├── csv-example.csv
+    └── plain-text-example.txt
 ```
 
 ---
 
-## 🎬 Demo (2 minutes)
+## 🎬 How It Works
 
-**0:00-0:15** - "Security audits waste 6 hours copying findings to Jira"
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   UPLOAD    │ ──▶ │  CONFIGURE  │ ──▶ │   RESULTS   │
+│             │     │             │     │             │
+│ Paste scan  │     │ Filter,     │     │ Created: 12 │
+│ output      │     │ assign,     │     │ Updated: 3  │
+│             │     │ set SLA     │     │ Failed: 0   │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
 
-**0:15-0:45** - Paste SARIF JSON, click Parse
-
-**0:45-1:15** - Show parsed findings with severity badges, CVSS scores
-
-**1:15-1:45** - Click Create, show issues appearing in Jira
-
-**1:45-2:00** - "30 seconds. Done."
+1. **Upload** — Paste security scan JSON/CSV/text
+2. **Configure** — Select findings, set assignees per severity, configure SLA
+3. **Results** — View created/deduplicated issues with direct links
 
 ---
 
 ## 📊 Supported Formats
 
-| Format | Source |
-|--------|--------|
-| SARIF | GitHub CodeQL, Semgrep, SAST tools |
-| Snyk JSON | Snyk vulnerability reports |
-| Semgrep JSON | Semgrep SAST output |
-| Trivy JSON | Trivy container scans |
-| CSV | Any scanner export |
-| Plain Text | Manual audit reports |
+| Format | Source | Example |
+|--------|--------|---------|
+| **SARIF** | GitHub CodeQL, Semgrep, most SAST tools | `sarif-example.json` |
+| **Snyk JSON** | Snyk CLI / Web exports | `snyk-example.json` |
+| **Semgrep JSON** | Semgrep SAST output | `semgrep-example.json` |
+| **Trivy JSON** | Trivy container/image scans | `trivy-example.json` |
+| **Burp XML** | Burp Suite scan exports | — |
+| **CSV** | Any scanner with CSV export | `csv-example.csv` |
+| **Plain Text** | Manual audit reports, bullet lists | `plain-text-example.txt` |
 
 ---
 
-## 🏆 Submission Info
+## 🔧 Technical Details
 
-- **Category**: Apps for Software Teams
-- **Bonus**: Runs on Atlassian eligible
-- **Built with**: Forge, React, Jira REST API
+| | |
+|---|---|
+| **Platform** | Atlassian Forge |
+| **UI Framework** | UI Kit 2 (`@forge/react`) |
+| **Runtime** | Node.js 22.x |
+| **API** | Jira REST API v3 |
+
+### Permissions
+
+| Scope | Purpose |
+|-------|---------|
+| `read:jira-work` | Read project info |
+| `write:jira-work` | Create/update issues |
+| `read:jira-user` | Load assignable users |
+| `manage:jira-project` | Access project settings |
+
+---
+
+## 🏆 Codegeist 2025
+
+| | |
+|---|---|
+| **Category** | Apps for Software Teams |
+| **Submission** | Codegeist 2025: Atlassian Williams Racing Edition 🏎️ |
+| **Built with** | Forge, React, Jira REST API |
 
 ---
 
 ## 📄 License
 
-MIT
+MIT — free to use, modify, and distribute.
 
 ---
 
-Built for **Codegeist 2025: Atlassian Williams Racing Edition** 🏎️
+**Built for Codegeist 2025** 🏁

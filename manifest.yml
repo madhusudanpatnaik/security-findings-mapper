@@ -1,20 +1,23 @@
 modules:
   jira:projectPage:
     - key: security-findings-mapper
-      function: render
       title: Security Findings Mapper
+      resource: main
+      render: native
       resolver:
         function: resolver
 
   function:
-    - key: render
-      handler: index.render
     - key: resolver
-      handler: index.handler
+      handler: resolver.handler
+
+resources:
+  - key: main
+    path: src/frontend/index.jsx
 
 app:
   runtime:
-    name: nodejs20.x
+    name: nodejs22.x
   id: ari:cloud:ecosystem::app/a2d55140-59a4-432e-84bd-c52b0eae0792
 
 permissions:
@@ -23,3 +26,15 @@ permissions:
     - write:jira-work
     - read:jira-user
     - manage:jira-project
+    - manage:jira-configuration
+  external:
+    fetch:
+      backend:
+        - '*.githubusercontent.com'
+        - '*.github.com'
+        - '*.s3.amazonaws.com'
+        - '*.blob.core.windows.net'
+        - '*.storage.googleapis.com'
+        - '*.dropboxusercontent.com'
+        - '*.sharepoint.com'
+        - '*.onedrive.com'

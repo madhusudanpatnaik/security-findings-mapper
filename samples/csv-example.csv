@@ -1,10 +1,10 @@
-Title,Severity,CVSS,CWE,Location,Description,Remediation
-SQL Injection in Login Form,CRITICAL,9.8,89,/api/auth/login,User input directly concatenated into SQL query allows authentication bypass,Use parameterized queries with prepared statements
-Remote Code Execution via File Upload,CRITICAL,10.0,434,/api/upload,Uploaded files executed as server-side code due to missing extension validation,Implement strict file type validation and store uploads outside webroot
-Stored XSS in User Profile,HIGH,7.4,79,/profile/edit,Profile bio field allows HTML/JS injection affecting all profile viewers,HTML encode all user input before rendering
-Weak Password Requirements,MEDIUM,5.3,521,/api/auth/register,Passwords only require 6 characters with no complexity requirements,Enforce minimum 12 characters with complexity requirements
-Missing HTTPS on Login Page,MEDIUM,5.9,319,/login,Credentials transmitted over unencrypted HTTP connection,Implement HTTPS site-wide with HSTS headers
-Session Fixation,HIGH,7.5,384,/api/auth/login,Session ID not regenerated after authentication,Generate new session ID upon successful login
-Open Redirect,LOW,4.7,601,/redirect?url=,Unvalidated redirect URL allows phishing attacks,Whitelist allowed redirect destinations
-Information Disclosure in Headers,LOW,3.1,200,All responses,Server version exposed in X-Powered-By header,Remove or obscure server version headers
+Title,Severity,CVSS,CWE,Location,Description,Remediation,Evidence
+SQL Injection in Login Form,CRITICAL,9.8,89,/api/auth/login,User input directly concatenated into SQL query allows authentication bypass,Use parameterized queries with prepared statements,"SELECT * FROM users WHERE email='[INPUT]' AND pwd='[INPUT]'"
+Remote Code Execution via File Upload,CRITICAL,10.0,434,/api/upload,Uploaded files executed as server-side code due to missing extension validation,Implement strict file type validation and store uploads outside webroot,"Uploaded file stored at /var/www/html/uploads/shell.php and executed"
+Stored XSS in User Profile,HIGH,7.4,79,/profile/edit,Profile bio field allows HTML/JS injection affecting all profile viewers,HTML encode all user input before rendering,"<script>alert('xss')</script> stored in bio renders on profile view"
+Weak Password Requirements,MEDIUM,5.3,521,/api/auth/register,Passwords only require 6 characters with no complexity requirements,Enforce minimum 12 characters with complexity requirements,"Accepted password '123456' without warnings"
+Missing HTTPS on Login Page,MEDIUM,5.9,319,/login,Credentials transmitted over unencrypted HTTP connection,Implement HTTPS site-wide with HSTS headers,"Login form loaded over http:// with basic auth packet captured in cleartext"
+Session Fixation,HIGH,7.5,384,/api/auth/login,Session ID not regenerated after authentication,Generate new session ID upon successful login,"Session cookie JSESSIONID reused pre- and post-auth"
+Open Redirect,LOW,4.7,601,/redirect?url=,Unvalidated redirect URL allows phishing attacks,Whitelist allowed redirect destinations,"Redirects to https://attacker.com when url param provided"
+Information Disclosure in Headers,LOW,3.1,200,All responses,Server version exposed in X-Powered-By header,Remove or obscure server version headers,"Response header: X-Powered-By: Apache/2.4.29 (Ubuntu)"
 

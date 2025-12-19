@@ -5,6 +5,23 @@
  * Based on patterns from n0s1 and common security scanner outputs
  */
 
+import crypto from 'crypto';
+
+/**
+ * Generate a fingerprint hash for a finding to enable deduplication.
+ * Combines: ruleId, file path, line number, scanner, and severity
+ */
+function generateFingerprint(ruleId, location, scanner, severity) {
+  const normalized = [
+    (ruleId || '').toLowerCase().trim(),
+    (location || '').toLowerCase().trim(),
+    (scanner || '').toLowerCase().trim(),
+    (severity || '').toUpperCase().trim()
+  ].join('|');
+  
+  return crypto.createHash('sha256').update(normalized).digest('hex');
+}
+
 // Regex patterns for extracting security metadata
 const PATTERNS = {
   // CVSS Score: "CVSS: 9.8", "CVSS 3.1: 9.8", "cvss_score: 9.8"
@@ -26,7 +43,7 @@ const PATTERNS = {
   location: /(?:file|path|location|uri|affected)[-_:\s]*['"]*([^\s'"]+\.[a-zA-Z]{1,5}(?::\d+)?)/i,
   
   // URL pattern
-  url: /(https?:\/\/[^\s<>"{}|\\^`\[\]]+)/i
+  url: /(https?:\/\/[^^\s<>"{}|\\^`[\]]+)/i
 };
 
 // Severity normalization map
@@ -57,27 +74,38 @@ export function parseSecurityFindings(content, format = 'auto') {
   if (format === 'auto') {
     format = detectFormat(trimmedContent);
   }
+  
+  console.log('[PARSER] Format detected/specified:', format);
 
   switch (format.toLowerCase()) {
     case 'sarif':
+      console.log('[PARSER] Using SARIF parser');
       return parseSARIF(trimmedContent);
     case 'json':
+      console.log('[PARSER] Using generic JSON parser');
       return parseJSON(trimmedContent);
     case 'csv':
+      console.log('[PARSER] Using CSV parser');
       return parseCSV(trimmedContent);
     case 'text':
     case 'txt':
     case 'plaintext':
+      console.log('[PARSER] Using plaintext parser');
       return parsePlainText(trimmedContent);
     case 'snyk':
+      console.log('[PARSER] Using Snyk parser');
       return parseSnykJSON(trimmedContent);
     case 'semgrep':
+      console.log('[PARSER] Using Semgrep parser');
       return parseSemgrepJSON(trimmedContent);
     case 'trivy':
+      console.log('[PARSER] Using Trivy parser');
       return parseTrivyJSON(trimmedContent);
     case 'burp':
+      console.log('[PARSER] Using Burp parser');
       return parseBurpXML(trimmedContent);
     default:
+      console.log('[PARSER] Using default fallback');
       // Try JSON first, then text
       try {
         const parsed = JSON.parse(trimmedContent);
@@ -102,19 +130,25 @@ function detectFormat(content) {
     try {
       const parsed = JSON.parse(trimmed);
       if (parsed.$schema?.includes('sarif') || parsed.runs) {
+        console.log('[DEBUG] Detected format: sarif');
         return 'sarif';
       }
       if (parsed.vulnerabilities && parsed.packageManager) {
+        console.log('[DEBUG] Detected format: snyk');
         return 'snyk';
       }
       if (parsed.results && parsed.results[0]?.check_id) {
+        console.log('[DEBUG] Detected format: semgrep');
         return 'semgrep';
       }
       if (parsed.Results || parsed.Vulnerabilities) {
+        console.log('[DEBUG] Detected format: trivy');
         return 'trivy';
       }
+      console.log('[DEBUG] Detected format: json (generic)');
       return 'json';
     } catch {
+      console.log('[DEBUG] Detected format: text (JSON parse failed)');
       return 'text';
     }
   }
@@ -176,6 +210,9 @@ function parseSARIF(content) {
       const cweMatch = (rule.id + ' ' + (rule.shortDescription?.text || '')).match(PATTERNS.cwe);
       const cweId = cweMatch ? cweMatch[1] : null;
       
+      // Generate fingerprint for deduplication
+      const fingerprint = generateFingerprint(ruleId, locationStr, tool, severity);
+      
       // Build finding
       findings.push({
         id: `sarif-${findings.length + 1}`,
@@ -193,6 +230,7 @@ function parseSARIF(content) {
         references: rule.helpUri ? [rule.helpUri] : [],
         tool: tool,
         ruleId: ruleId,
+        fingerprint: fingerprint,
         raw: result
       });
     }
@@ -296,6 +334,14 @@ function normalizeJSONFinding(item, index) {
     owaspCategory = extractOWASP(item.tags);
   }
   
+  // Generate fingerprint for deduplication
+  const fingerprint = generateFingerprint(
+    item.rule_id || item.check_id || item.plugin_id || title,
+    location,
+    item.tool || item.scanner || item.source || 'Unknown',
+    severity
+  );
+  
   return {
     id: `json-${index}`,
     title: String(title).substring(0, 200),
@@ -313,6 +359,7 @@ function normalizeJSONFinding(item, index) {
     references: extractReferences(item),
     tool: item.tool || item.scanner || item.source || 'Unknown',
     ruleId: item.rule_id || item.check_id || item.plugin_id || null,
+    fingerprint: fingerprint,
     raw: item
   };
 }
@@ -327,22 +374,27 @@ function parseSnykJSON(content) {
   const vulnerabilities = data.vulnerabilities || [];
   
   for (const vuln of vulnerabilities) {
+    const severity = SEVERITY_MAP[vuln.severity?.toLowerCase()] || 'MEDIUM';
+    const location = `${vuln.packageName}@${vuln.version}`;
+    const fingerprint = generateFingerprint(vuln.id, location, 'Snyk', severity);
+    
     findings.push({
       id: `snyk-${findings.length + 1}`,
       title: vuln.title || vuln.name,
       description: vuln.description || '',
-      severity: SEVERITY_MAP[vuln.severity?.toLowerCase()] || 'MEDIUM',
+      severity: severity,
       cvssScore: vuln.cvssScore || vuln.CVSSv3 || null,
       cweId: vuln.identifiers?.CWE?.[0]?.replace('CWE-', '') || null,
       cveId: vuln.identifiers?.CVE?.[0] || null,
       owaspCategory: null,
-      affectedComponent: `${vuln.packageName}@${vuln.version}`,
+      affectedComponent: location,
       location: vuln.from?.join(' → ') || '',
-      evidence: '',
+      evidence: vuln.evidence || vuln.exploit || vuln.exploitMaturity || '',
       remediation: vuln.fixedIn ? `Upgrade to version ${vuln.fixedIn.join(' or ')}` : '',
       references: vuln.references?.map(r => r.url) || [],
       tool: 'Snyk',
       ruleId: vuln.id,
+      fingerprint: fingerprint,
       raw: vuln
     });
   }
@@ -354,35 +406,105 @@ function parseSnykJSON(content) {
  * Parse Semgrep JSON format
  */
 function parseSemgrepJSON(content) {
+  console.log('[DEBUG] parseSemgrepJSON called');
   const data = JSON.parse(content);
   const findings = [];
   
   const results = data.results || [];
+  console.log('[DEBUG] Semgrep results count:', results.length);
   
   for (const result of results) {
     const severity = result.extra?.severity || result.extra?.metadata?.severity || 'WARNING';
+    const normSeverity = SEVERITY_MAP[severity.toLowerCase()] || 'MEDIUM';
+    const location = `${result.path}:${result.start?.line || ''}`;
+    const fingerprint = generateFingerprint(result.check_id, location, 'Semgrep', normSeverity);
+    
+    // Create a human-readable title from check_id
+    // e.g., "javascript.express.security.audit.xss.mustache.var-in-href" -> "XSS: Variable in href (Mustache)"
+    const checkId = result.check_id || 'Unknown Rule';
+    const titleFromMessage = result.extra?.message?.split('.')[0] || '';
+    const readableTitle = formatSemgrepTitle(checkId, titleFromMessage);
+    console.log('[DEBUG] Semgrep finding: checkId=', checkId, 'title=', readableTitle);
     
     findings.push({
       id: `semgrep-${findings.length + 1}`,
-      title: result.check_id || 'Unknown Rule',
+      title: readableTitle,
       description: result.extra?.message || '',
-      severity: SEVERITY_MAP[severity.toLowerCase()] || 'MEDIUM',
+      severity: normSeverity,
       cvssScore: null,
-      cweId: result.extra?.metadata?.cwe?.[0]?.replace('CWE-', '') || null,
+      cweId: extractCWEFromArray(result.extra?.metadata?.cwe),
       cveId: null,
       owaspCategory: result.extra?.metadata?.owasp?.[0] || null,
-      affectedComponent: `${result.path}:${result.start?.line || ''}`,
+      affectedComponent: location,
       location: result.path,
       evidence: result.extra?.lines || '',
       remediation: result.extra?.fix || result.extra?.metadata?.fix || '',
       references: result.extra?.metadata?.references || [],
       tool: 'Semgrep',
-      ruleId: result.check_id,
+      ruleId: checkId,
+      fingerprint: fingerprint,
       raw: result
     });
   }
   
   return findings;
+}
+
+/**
+ * Format Semgrep check_id into a readable title
+ */
+function formatSemgrepTitle(checkId) {
+  // Extract meaningful parts from the check_id
+  // e.g., "javascript.express.security.audit.xss.mustache.var-in-href"
+  const parts = checkId.split('.');
+  
+  // Find the security-relevant parts (after 'security' or 'audit')
+  const securityIndex = parts.findIndex(p => p === 'security' || p === 'audit');
+  const relevantParts = securityIndex >= 0 ? parts.slice(securityIndex + 1) : parts.slice(-3);
+  
+  // Format each part: replace hyphens, capitalize
+  const formatted = relevantParts
+    .filter(p => p !== 'audit' && p !== 'security')
+    .map(p => {
+      // Handle common abbreviations
+      const abbrevMap = {
+        'xss': 'XSS',
+        'sqli': 'SQL Injection',
+        'csrf': 'CSRF',
+        'ssrf': 'SSRF',
+        'rce': 'RCE',
+        'jwt': 'JWT',
+        'xxe': 'XXE',
+        'idor': 'IDOR',
+        'lfi': 'LFI',
+        'rfi': 'RFI'
+      };
+      if (abbrevMap[p.toLowerCase()]) {
+        return abbrevMap[p.toLowerCase()];
+      }
+      // Replace hyphens and capitalize words
+      return p.split('-')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+    })
+    .join(': ');
+  
+  return formatted || checkId;
+}
+
+/**
+ * Extract CWE ID from Semgrep's CWE array format
+ */
+function extractCWEFromArray(cweArray) {
+  if (!cweArray || !Array.isArray(cweArray) || cweArray.length === 0) {
+    return null;
+  }
+  const cwe = cweArray[0];
+  if (typeof cwe === 'string') {
+    const match = cwe.match(/CWE-?(\d+)/i);
+    return match ? match[1] : null;
+  }
+  return null;
 }
 
 /**
@@ -398,22 +520,27 @@ function parseTrivyJSON(content) {
     const vulnerabilities = result.Vulnerabilities || [];
     
     for (const vuln of vulnerabilities) {
+      const severity = SEVERITY_MAP[vuln.Severity?.toLowerCase()] || 'MEDIUM';
+      const location = result.Target || '';
+      const fingerprint = generateFingerprint(vuln.VulnerabilityID, location, 'Trivy', severity);
+      
       findings.push({
         id: `trivy-${findings.length + 1}`,
         title: `${vuln.VulnerabilityID}: ${vuln.Title || vuln.PkgName}`,
         description: vuln.Description || '',
-        severity: SEVERITY_MAP[vuln.Severity?.toLowerCase()] || 'MEDIUM',
+        severity: severity,
         cvssScore: vuln.CVSS?.nvd?.V3Score || vuln.CVSS?.redhat?.V3Score || null,
         cweId: vuln.CweIDs?.[0]?.replace('CWE-', '') || null,
         cveId: vuln.VulnerabilityID?.startsWith('CVE') ? vuln.VulnerabilityID : null,
         owaspCategory: null,
         affectedComponent: `${vuln.PkgName}@${vuln.InstalledVersion}`,
-        location: result.Target || '',
-        evidence: '',
+        location: location,
+        evidence: vuln.PrimaryURL || vuln.Description || '',
         remediation: vuln.FixedVersion ? `Upgrade to ${vuln.FixedVersion}` : '',
         references: vuln.References || [],
         tool: 'Trivy',
         ruleId: vuln.VulnerabilityID,
+        fingerprint: fingerprint,
         raw: vuln
       });
     }
@@ -448,22 +575,27 @@ function parseBurpXML(content) {
       'info': 'INFO'
     };
     
+    const severity = severityMap[getName('severity').toLowerCase()] || 'MEDIUM';
+    const location = getName('host') + getName('path');
+    const fingerprint = generateFingerprint(getName('type'), location, 'Burp Suite', severity);
+    
     findings.push({
       id: `burp-${findings.length + 1}`,
       title: getName('name') || 'Unknown Issue',
       description: getName('issueDetail') || getName('issueBackground') || '',
-      severity: severityMap[getName('severity').toLowerCase()] || 'MEDIUM',
+      severity: severity,
       cvssScore: null,
       cweId: null,
       cveId: null,
       owaspCategory: null,
       affectedComponent: getName('path') || getName('location'),
-      location: getName('host') + getName('path'),
+      location: location,
       evidence: getName('request') || getName('response') || '',
       remediation: getName('remediationBackground') || getName('remediationDetail') || '',
       references: [],
       tool: 'Burp Suite',
       ruleId: getName('type'),
+      fingerprint: fingerprint,
       raw: issueXml
     });
   }
@@ -492,6 +624,7 @@ function parseCSV(content) {
     cve: header.findIndex(h => ['cve', 'cve_id'].includes(h)),
     location: header.findIndex(h => ['location', 'file', 'path', 'url', 'component'].includes(h)),
     remediation: header.findIndex(h => ['remediation', 'fix', 'recommendation', 'solution'].includes(h)),
+    evidence: header.findIndex(h => ['evidence', 'proof', 'snippet', 'details'].includes(h)),
   };
   
   // Parse data rows
@@ -507,6 +640,8 @@ function parseCSV(content) {
     const title = getValue('title') || `Finding ${i}`;
     let severity = getValue('severity') || 'MEDIUM';
     severity = SEVERITY_MAP[severity.toLowerCase()] || 'MEDIUM';
+    const location = getValue('location');
+    const fingerprint = generateFingerprint(title, location, 'CSV Import', severity);
     
     findings.push({
       id: `csv-${i}`,
@@ -517,13 +652,14 @@ function parseCSV(content) {
       cweId: getValue('cwe').replace(/\D/g, '') || null,
       cveId: getValue('cve') || null,
       owaspCategory: null,
-      affectedComponent: getValue('location'),
-      location: getValue('location'),
-      evidence: '',
+      affectedComponent: location,
+      location: location,
+      evidence: getValue('evidence'),
       remediation: getValue('remediation'),
       references: [],
       tool: 'CSV Import',
       ruleId: null,
+      fingerprint: fingerprint,
       raw: values
     });
   }
@@ -567,50 +703,60 @@ function parseCSVLine(line) {
 function parsePlainText(content) {
   const findings = [];
   
-  // Split by common finding delimiters
-  const findingDelimiters = [
-    /(?:^|\n)(?:#{1,3}\s*)?(?:finding|vulnerability|issue|bug)\s*[:#]?\s*\d*/gi,
-    /(?:^|\n)[-=]{3,}/g,
-    /(?:^|\n)\d+\.\s+/g,
-    /(?:^|\n)\[(?:CRITICAL|HIGH|MEDIUM|LOW|INFO)\]/gi
-  ];
+  // ONLY use Method 1 for structured reports with "Finding #N: Title" pattern
+  // This is the most reliable method for security reports
+  const findingPattern = /Finding\s*#?(\d+)\s*:\s*([^\n]+)/gi;
+  const findingMatches = [...content.matchAll(findingPattern)];
   
-  // Try to split into sections
-  let sections = [content];
-  for (const delimiter of findingDelimiters) {
-    const newSections = [];
-    for (const section of sections) {
-      const parts = section.split(delimiter).filter(p => p.trim().length > 50);
-      if (parts.length > 1) {
-        newSections.push(...parts);
-      } else {
-        newSections.push(section);
+  if (findingMatches.length > 0) {
+    for (let i = 0; i < findingMatches.length; i++) {
+      const match = findingMatches[i];
+      const findingNum = match[1];
+      const title = match[2].trim();
+      
+      // STRICT validation: title must be meaningful
+      if (!title || 
+          title.length < 5 || 
+          /^[-=\s*#]+$/.test(title) ||
+          /^[\d.]+$/.test(title)) {
+        continue;
+      }
+      
+      // Extract block from this finding to the next (or end)
+      const startIndex = match.index;
+      const nextMatch = findingMatches[i + 1];
+      const endIndex = nextMatch ? nextMatch.index : content.length;
+      const block = content.slice(startIndex, endIndex);
+      
+      // Build finding directly here instead of calling parseStructuredFinding
+      // to ensure we use the exact title we validated
+      const finding = buildFindingFromBlock(findingNum, title, block);
+      if (finding) {
+        findings.push(finding);
       }
     }
-    if (newSections.length > sections.length) {
-      sections = newSections;
-      break;
-    }
+    
+    // Return early - don't fall through to other methods
+    return findings;
   }
   
-  // If no sections found, try paragraph-based splitting
-  if (sections.length === 1) {
-    sections = content.split(/\n\s*\n/).filter(p => p.trim().length > 30);
+  // Fallback for non-structured reports (no "Finding #N:" pattern found)
+  // Only parse if content looks like security findings
+  if (!/vulnerability|security issue|injection|xss|csrf|cwe-/i.test(content)) {
+    return findings;
   }
   
-  // Parse each section as a finding
-  for (const section of sections) {
-    const finding = parseTextSection(section, findings.length + 1);
-    if (finding && finding.title && finding.title !== `Finding ${findings.length + 1}`) {
-      findings.push(finding);
-    }
-  }
-  
-  // If we got nothing, treat whole content as single finding
-  if (findings.length === 0) {
-    const finding = parseTextSection(content, 1);
-    if (finding) {
-      findings.push(finding);
+  // Try paragraph-based parsing as last resort
+  const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 100);
+  for (const para of paragraphs) {
+    if (/vulnerability|injection|xss|csrf|exposure|bypass/i.test(para)) {
+      const finding = parseTextSection(para, findings.length + 1);
+      if (finding && finding.title && 
+          finding.title.length >= 8 &&
+          !/^[-=\s*#]+$/.test(finding.title) &&
+          !/^(SECURITY|END OF|Application|Date|Report)/i.test(finding.title)) {
+        findings.push(finding);
+      }
     }
   }
   
@@ -618,21 +764,145 @@ function parsePlainText(content) {
 }
 
 /**
+ * Build a finding from a validated block
+ */
+function buildFindingFromBlock(findingNum, title, block) {
+  // Title is already validated by caller
+  if (!title || title.length < 5) return null;
+  
+  // Extract fields using labeled patterns
+  const extractField = (pattern) => {
+    const match = block.match(pattern);
+    return match ? match[1].trim() : '';
+  };
+  
+  // Severity
+  let severity = 'MEDIUM';
+  const severityMatch = block.match(/Severity:\s*(CRITICAL|HIGH|MEDIUM|LOW|INFO)/i);
+  if (severityMatch) {
+    severity = SEVERITY_MAP[severityMatch[1].toLowerCase()] || 'MEDIUM';
+  }
+  
+  // CVSS
+  let cvssScore = null;
+  const cvssMatch = block.match(/CVSS:\s*([\d.]+)/i);
+  if (cvssMatch) {
+    cvssScore = parseFloat(cvssMatch[1]);
+  }
+  
+  // CWE
+  let cweId = null;
+  const cweMatch = block.match(/CWE-?(\d+)/i);
+  if (cweMatch) {
+    cweId = cweMatch[1];
+  }
+  
+  // OWASP
+  let owaspCategory = null;
+  const owaspMatch = block.match(/OWASP:\s*(A\d{2}:\d{4})/i);
+  if (owaspMatch) {
+    owaspCategory = owaspMatch[1].toUpperCase();
+  }
+  
+  // Description (between "Description:" and next field)
+  let description = '';
+  const descMatch = block.match(/Description:\s*([\s\S]*?)(?=\n(?:Affected|Evidence|Remediation|References|$))/i);
+  if (descMatch) {
+    description = descMatch[1].trim();
+  }
+  
+  // Affected Component / Location
+  let location = '';
+  const locationMatch = block.match(/Affected\s*Component:\s*([\s\S]*?)(?=\n(?:Evidence|Remediation|References|Description|$))/i);
+  if (locationMatch) {
+    location = locationMatch[1].trim().split('\n')[0];
+  }
+  
+  // Evidence
+  let evidence = '';
+  const evidenceMatch = block.match(/Evidence:\s*([\s\S]*?)(?=\n(?:Remediation|References|$))/i);
+  if (evidenceMatch) {
+    evidence = evidenceMatch[1].trim();
+  }
+  
+  // Remediation
+  let remediation = '';
+  const remMatch = block.match(/Remediation:\s*([\s\S]*?)(?=\n(?:References|$)|\n[=]{10,})/i);
+  if (remMatch) {
+    remediation = remMatch[1].trim();
+  }
+  
+  // References (URLs)
+  const references = [];
+  const urlMatches = block.matchAll(/https?:\/\/[^\s<>"']+/gi);
+  for (const match of urlMatches) {
+    if (!references.includes(match[0])) {
+      references.push(match[0]);
+    }
+  }
+  
+  return {
+    id: `text-${findingNum}`,
+    title: title.substring(0, 200),
+    description: description,
+    severity: severity,
+    cvssScore: cvssScore,
+    cweId: cweId,
+    cveId: extractField(/CVE-(\d{4}-\d+)/i) ? `CVE-${extractField(/CVE-(\d{4}-\d+)/i)}` : null,
+    owaspCategory: owaspCategory,
+    affectedComponent: location,
+    location: location,
+    evidence: evidence,
+    remediation: remediation,
+    references: references,
+    tool: 'Manual Import',
+    ruleId: cweId ? `CWE-${cweId}` : null,
+    fingerprint: generateFingerprint(title, location, 'Manual Import', severity),
+    raw: block
+  };
+}
+
+/**
  * Parse a text section into a finding
  */
 function parseTextSection(text, index) {
-  const lines = text.split('\n').filter(l => l.trim());
+  const lines = text.split('\n').filter(l => l.trim() && !/^[=-]{3,}$/.test(l.trim()));
   if (lines.length === 0) return null;
   
-  // Extract title (first significant line or line with vulnerability keywords)
-  let title = lines[0].replace(/^[\s#*-]+/, '').trim();
+  // Skip sections that are just headers/metadata
+  if (/^(security (scan )?report|application:|date:|generated by|end of report)/i.test(text.trim())) {
+    return null;
+  }
   
-  // Look for better title candidates
-  for (const line of lines.slice(0, 5)) {
+  // Extract title (first significant line or line with vulnerability keywords)
+  let title = '';
+  
+  // Look for explicit title/name patterns first
+  for (const line of lines.slice(0, 8)) {
     if (/(?:title|name|vulnerability|finding)[\s:]+(.+)/i.test(line)) {
       title = RegExp.$1.trim();
       break;
     }
+  }
+  
+  // If no explicit title found, use first substantial line that's not just severity/metadata
+  if (!title) {
+    for (const line of lines) {
+      const cleanLine = line.replace(/^[\s#*-]+/, '').trim();
+      // Skip lines that are just severity, metadata, or decorative
+      if (cleanLine.length > 5 && 
+          !/^(CRITICAL|HIGH|MEDIUM|LOW|INFO|SEVERITY|CVSS|CWE|DATE|APPLICATION)/i.test(cleanLine) &&
+          !/^[=\-\s*]+$/.test(cleanLine) &&
+          !/^\d+\.\d+$/.test(cleanLine)) {
+        title = cleanLine;
+        break;
+      }
+    }
+  }
+  
+  // If still no title, this isn't a valid finding
+  if (!title || title.length < 4) {
+    return null;
   }
   
   // Extract severity
@@ -722,6 +992,7 @@ function parseTextSection(text, index) {
     references: references,
     tool: 'Manual Import',
     ruleId: null,
+    fingerprint: generateFingerprint(title, location, 'Manual Import', severity),
     raw: text
   };
 }

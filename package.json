@@ -2,7 +2,7 @@
   "name": "security-findings-mapper",
   "version": "1.0.0",
   "description": "Automatically parse security audit reports and create Jira issues with proper severity, CVSS scores, and OWASP labels",
-  "main": "src/index.js",
+  "main": "src/index.jsx",
   "scripts": {
     "lint": "eslint src/**/*.js src/**/*.jsx",
     "deploy": "forge deploy",
@@ -13,13 +13,15 @@
   "author": "Security Findings Mapper Team",
   "license": "MIT",
   "dependencies": {
-    "@forge/api": "^3.0.0",
-    "@forge/resolver": "^1.6.0",
-    "@forge/react": "^10.0.0",
-    "@forge/bridge": "^3.0.0"
+    "@forge/api": "^6.4.1",
+    "@forge/bridge": "^5.10.0",
+    "@forge/react": "^11.8.2",
+    "@forge/resolver": "^1.7.1",
+    "pdf-parse": "^2.4.5"
   },
   "devDependencies": {
-    "eslint": "^8.0.0"
+    "@babel/preset-react": "^7.28.5",
+    "eslint": "^8.0.0",
+    "eslint-plugin-react": "^7.37.5"
   }
 }
-

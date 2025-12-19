@@ -24,7 +24,8 @@
             "nvd": {
               "V3Score": 5.5
             }
-          }
+          },
+          "PrimaryURL": "https://security.alpinelinux.org/vuln/CVE-2021-42374"
         },
         {
           "VulnerabilityID": "CVE-2022-28391",
@@ -42,7 +43,8 @@
             "nvd": {
               "V3Score": 8.8
             }
-          }
+          },
+          "PrimaryURL": "https://security.alpinelinux.org/vuln/CVE-2022-28391"
         }
       ]
     },
