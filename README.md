@@ -1,5 +1,7 @@
 # 🛡️ Security Findings Mapper
 
+![Security Findings Mapper Banner](images/banner.png)
+
 > **Transform security scan chaos into actionable Jira issues in seconds**
 
 [![Built on Forge](https://img.shields.io/badge/Built%20on-Atlassian%20Forge-0052CC?logo=atlassian)](https://developer.atlassian.com/platform/forge/)
