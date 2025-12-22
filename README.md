@@ -15,7 +15,7 @@
 | | |
 |---|---|
 | **Project Name** | Security Findings Mapper |
-| **Elevator Pitch** | Paste any security scan → instantly create Jira issues with severity, SLA, and auto-assignment |
+| **Des** | Paste any security scan → instantly create Jira issues with severity, SLA, and auto-assignment |
 
 ---
 
